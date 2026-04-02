@@ -1,0 +1,13 @@
+{
+  "domain": "smart_utility_meter",
+  "name": "Smart Utility Meter",
+  "version": "1.0.0",
+  "config_flow": true,
+  "documentation": "https://github.com/haveyourphil/homeassistant-smartutilitymeter",
+  "issue_tracker": "https://github.com/haveyourphil/homeassistant-smartutilitymeter/issues",
+  "codeowners": ["@haveyourphil"],
+  "integration_type": "helper",
+  "iot_class": "local_push",
+  "dependencies": [],
+  "requirements": []
+}

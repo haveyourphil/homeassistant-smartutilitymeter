@@ -1,0 +1,34 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Smart Utility Meter",
+        "description": "Create a daily-resetting accumulator that tracks increases from a source sensor.",
+        "data": {
+          "source_entity": "Source sensor",
+          "max_increase": "Maximum single-step increase (0 = no limit)"
+        },
+        "data_description": {
+          "source_entity": "The sensor whose increases you want to track (e.g. your IHD gas total).",
+          "max_increase": "Any single reading increase larger than this value will be ignored as a spike or glitch. Set to 0 to disable."
+        }
+      }
+    },
+    "abort": {
+      "already_configured": "This source entity is already being tracked."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Smart Utility Meter options",
+        "data": {
+          "max_increase": "Maximum single-step increase (0 = no limit)"
+        },
+        "data_description": {
+          "max_increase": "Any single reading increase larger than this value will be ignored as a spike or glitch. Set to 0 to disable."
+        }
+      }
+    }
+  }
+}
