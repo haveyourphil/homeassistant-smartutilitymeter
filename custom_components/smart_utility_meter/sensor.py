@@ -78,8 +78,16 @@ class SmartUtilityMeterSensor(RestoreSensor):
         self._attr_unique_id = entry.entry_id
         self._attr_name = entry.data[CONF_NAME]
 
-        # Unit is inherited from the source entity; set properly in async_added_to_hass.
+        # These are all copied from the source entity in _apply_source_attributes.
+        # Declared here so the type checker knows they exist before async_added_to_hass.
         self._attr_native_unit_of_measurement: str | None = None
+        self._attr_device_class: str | None = None
+        self._attr_icon: str | None = None
+        self._attr_suggested_display_precision: int | None = None
+
+        # Flipped to True once we've successfully read attributes from the source.
+        # Prevents redundant re-application on every state change.
+        self._source_attrs_applied: bool = False
 
     @property
     def suggested_object_id(self) -> str:
@@ -124,19 +132,13 @@ class SmartUtilityMeterSensor(RestoreSensor):
                 except (TypeError, ValueError):
                     pass
 
-        # --- Seed unit from source if not yet known ---
-        if self._attr_native_unit_of_measurement is None:
-            source_state = self.hass.states.get(self._source_entity_id)
-            if source_state is not None:
-                self._attr_native_unit_of_measurement = source_state.attributes.get(
-                    "unit_of_measurement"
-                )
+        # --- Copy attributes and seed last_source_value from the source entity ---
+        # Both operations read the source state, so we do it in one pass.
+        source_state = self.hass.states.get(self._source_entity_id)
+        if source_state is not None:
+            self._apply_source_attributes(source_state)
 
-        # --- Seed last_source_value if still unknown ---
-        # This handles the very first run (no persisted state yet).
-        if self._last_source_value is None:
-            source_state = self.hass.states.get(self._source_entity_id)
-            if source_state is not None and source_state.state not in (
+            if self._last_source_value is None and source_state.state not in (
                 "unavailable",
                 "unknown",
             ):
@@ -170,6 +172,31 @@ class SmartUtilityMeterSensor(RestoreSensor):
     # ------------------------------------------------------------------
     # Properties
     # ------------------------------------------------------------------
+
+    def _apply_source_attributes(self, source_state: Any) -> None:
+        """Copy display attributes from the source entity's current state.
+
+        HA writes device_class, unit_of_measurement, icon, and
+        suggested_display_precision into the state attributes dict, so they're
+        available here without touching the entity registry.
+
+        state_class is intentionally NOT copied — this sensor is always
+        TOTAL_INCREASING regardless of what the source reports.
+        """
+        attrs = source_state.attributes
+
+        self._attr_native_unit_of_measurement = attrs.get("unit_of_measurement")
+        self._attr_device_class = attrs.get("device_class")
+        self._attr_icon = attrs.get("icon")
+
+        raw_precision = attrs.get("suggested_display_precision")
+        if raw_precision is not None:
+            try:
+                self._attr_suggested_display_precision = int(raw_precision)
+            except (TypeError, ValueError):
+                pass
+
+        self._source_attrs_applied = True
 
     @property
     def native_value(self) -> float:
@@ -215,11 +242,10 @@ class SmartUtilityMeterSensor(RestoreSensor):
             )
             return
 
-        # Pick up the unit on the first valid state (or if it was never set).
-        if self._attr_native_unit_of_measurement is None:
-            self._attr_native_unit_of_measurement = new_state.attributes.get(
-                "unit_of_measurement"
-            )
+        # Copy source attributes on the first valid state we receive, in case the
+        # source entity wasn't ready yet when async_added_to_hass ran.
+        if not self._source_attrs_applied:
+            self._apply_source_attributes(new_state)
 
         if self._last_source_value is None:
             # No baseline yet — record this reading and wait for the next one.
