@@ -7,68 +7,55 @@ from typing import Any
 import voluptuous as vol
 from homeassistant import config_entries
 from homeassistant.components.sensor import DOMAIN as SENSOR_DOMAIN
+from homeassistant.const import CONF_NAME
 from homeassistant.helpers import selector
 
 from .const import CONF_MAX_INCREASE, CONF_SOURCE_ENTITY, DEFAULT_MAX_INCREASE, DOMAIN
 
+_CONFIG_SCHEMA = vol.Schema(
+    {
+        vol.Required(CONF_NAME): selector.TextSelector(
+            selector.TextSelectorConfig(type=selector.TextSelectorType.TEXT)
+        ),
+        vol.Required(CONF_SOURCE_ENTITY): selector.EntitySelector(
+            selector.EntitySelectorConfig(domain=SENSOR_DOMAIN)
+        ),
+        vol.Required(CONF_MAX_INCREASE, default=DEFAULT_MAX_INCREASE): selector.NumberSelector(
+            selector.NumberSelectorConfig(min=0, step=0.001, mode=selector.NumberSelectorMode.BOX)
+        ),
+    }
+)
 
-def _build_schema(
-    default_source: str = "",
-    default_max_increase: float = DEFAULT_MAX_INCREASE,
-    *,
-    include_source: bool = True,
-) -> vol.Schema:
-    """Build the shared schema for both config and options flows.
-
-    Source entity is omitted from the options flow — changing the source would
-    invalidate the accumulated total and is better handled by creating a new entry.
-    """
-    fields: dict = {}
-
-    if include_source:
-        fields[vol.Required(CONF_SOURCE_ENTITY, default=default_source)] = (
-            selector.EntitySelector(
-                selector.EntitySelectorConfig(domain=SENSOR_DOMAIN)
-            )
-        )
-
-    fields[vol.Required(CONF_MAX_INCREASE, default=default_max_increase)] = (
-        selector.NumberSelector(
-            selector.NumberSelectorConfig(
-                min=0,
-                step=0.001,
-                mode=selector.NumberSelectorMode.BOX,
-            )
-        )
-    )
-
-    return vol.Schema(fields)
+_OPTIONS_SCHEMA = vol.Schema(
+    {
+        vol.Required(CONF_MAX_INCREASE): selector.NumberSelector(
+            selector.NumberSelectorConfig(min=0, step=0.001, mode=selector.NumberSelectorMode.BOX)
+        ),
+    }
+)
 
 
 class SmartUtilityMeterConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """Handle the initial setup from the UI."""
 
-    VERSION = 1
+    VERSION = 2
 
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
     ) -> config_entries.ConfigFlowResult:
         """Show the setup form and create an entry on submission."""
         if user_input is not None:
-            # Use the source entity ID as the unique ID so the user cannot
-            # accidentally add the same source twice.
+            # Prevent the same source being tracked twice.
             await self.async_set_unique_id(user_input[CONF_SOURCE_ENTITY])
             self._abort_if_unique_id_configured()
 
             return self.async_create_entry(
-                title=f"Smart Utility Meter — {user_input[CONF_SOURCE_ENTITY]}",
+                # The entry title appears in the Helpers list in the UI.
+                title=user_input[CONF_NAME],
                 data=user_input,
             )
 
-        return self.async_show_form(
-            step_id="user",
-            data_schema=_build_schema(),
-        )
+        return self.async_show_form(step_id="user", data_schema=_CONFIG_SCHEMA)
 
     @staticmethod
     def async_get_options_flow(
@@ -98,9 +85,10 @@ class SmartUtilityMeterOptionsFlow(config_entries.OptionsFlow):
 
         return self.async_show_form(
             step_id="init",
-            # Source entity is intentionally excluded — see _build_schema docstring.
-            data_schema=_build_schema(
-                default_max_increase=float(current_max),
-                include_source=False,
+            # Name and source entity are intentionally excluded from options —
+            # changing either would invalidate the accumulated total and is better
+            # handled by deleting and recreating the helper.
+            data_schema=self.add_suggested_values_to_schema(
+                _OPTIONS_SCHEMA, {CONF_MAX_INCREASE: float(current_max)}
             ),
         )

@@ -8,12 +8,14 @@ from typing import Any
 
 from homeassistant.components.sensor import RestoreSensor, SensorStateClass
 from homeassistant.config_entries import ConfigEntry
+from homeassistant.const import CONF_NAME
 from homeassistant.core import Event, HomeAssistant, callback
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.event import (
     async_track_state_change_event,
     async_track_time_change,
 )
+from homeassistant.util import slugify
 
 from .const import CONF_MAX_INCREASE, CONF_SOURCE_ENTITY, DEFAULT_MAX_INCREASE, DOMAIN
 
@@ -74,10 +76,20 @@ class SmartUtilityMeterSensor(RestoreSensor):
 
         # Unique ID is the config entry ID so each entry maps to exactly one entity.
         self._attr_unique_id = entry.entry_id
-        self._attr_name = f"Smart Utility Meter — {self._source_entity_id}"
+        self._attr_name = entry.data[CONF_NAME]
 
         # Unit is inherited from the source entity; set properly in async_added_to_hass.
         self._attr_native_unit_of_measurement: str | None = None
+
+    @property
+    def suggested_object_id(self) -> str:
+        """Suggest an entity ID derived from the user-configured name.
+
+        HA uses this only on first registration; the user can rename it
+        afterwards via the entity registry without affecting the name.
+        e.g. "Daily Gas Usage" → sensor.daily_gas_usage
+        """
+        return slugify(self._attr_name)
 
     # ------------------------------------------------------------------
     # HA lifecycle

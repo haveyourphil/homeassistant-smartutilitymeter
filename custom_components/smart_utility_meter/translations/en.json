@@ -5,10 +5,12 @@
         "title": "Smart Utility Meter",
         "description": "Create a daily-resetting accumulator that tracks increases from a source sensor.",
         "data": {
+          "name": "Name",
           "source_entity": "Source sensor",
           "max_increase": "Maximum single-step increase (0 = no limit)"
         },
         "data_description": {
+          "name": "Name for this helper. Used as the entity ID (e.g. \"Daily Gas Usage\" → sensor.daily_gas_usage).",
           "source_entity": "The sensor whose increases you want to track (e.g. your IHD gas total).",
           "max_increase": "Any single reading increase larger than this value will be ignored as a spike or glitch. Set to 0 to disable."
         }
