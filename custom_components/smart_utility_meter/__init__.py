@@ -1,20 +1,17 @@
 """Smart Utility Meter integration."""
 
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import CONF_NAME
+from homeassistant.const import CONF_NAME, Platform
 from homeassistant.core import HomeAssistant
 
-from .const import CONF_SOURCE_ENTITY, DOMAIN
+from .const import CONF_SOURCE_ENTITY
 
-PLATFORMS = ["sensor"]
+PLATFORMS = [Platform.SENSOR]
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up a config entry and forward it to the sensor platform."""
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
-
-    # Re-load the sensor when the user changes options (e.g. max_increase).
-    entry.async_on_unload(entry.add_update_listener(_async_update_listener))
 
     return True
 
@@ -24,11 +21,6 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     return await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
 
 
-async def _async_update_listener(hass: HomeAssistant, entry: ConfigEntry) -> None:
-    """Reload the entry when options are updated."""
-    await hass.config_entries.async_reload(entry.entry_id)
-
-
 async def async_migrate_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> bool:
     """Migrate config entries from older schema versions.
 
@@ -36,13 +28,22 @@ async def async_migrate_entry(hass: HomeAssistant, config_entry: ConfigEntry) ->
     the version declared in the ConfigFlow class, so broken entries are healed
     on the next restart without user intervention.
     """
-    if config_entry.version < 2:
+    if config_entry.version > 2:
+        # Refuse to interpret a future schema when an older release is installed.
+        return False
+
+    if config_entry.version == 1:
         # v2 added CONF_NAME. Derive a readable default from the source entity ID
-        # so existing entries get a sensible name without the user having to do anything.
+        # so existing entries get a sensible name without user intervention.
         # e.g. "sensor.gas_total" → "Gas Total"
         source: str = config_entry.data.get(CONF_SOURCE_ENTITY, "")
         object_id = source.split(".")[-1] if "." in source else source
-        default_name = object_id.replace("_", " ").title()
+        default_name = (
+            config_entry.data.get(CONF_NAME)
+            or object_id.replace("_", " ").title()
+            or config_entry.title
+            or "Smart Utility Meter"
+        )
 
         hass.config_entries.async_update_entry(
             config_entry,

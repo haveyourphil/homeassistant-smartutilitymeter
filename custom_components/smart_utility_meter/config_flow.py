@@ -8,6 +8,7 @@ import voluptuous as vol
 from homeassistant import config_entries
 from homeassistant.components.sensor import DOMAIN as SENSOR_DOMAIN
 from homeassistant.const import CONF_NAME
+from homeassistant.core import callback
 from homeassistant.helpers import selector
 
 from .const import CONF_MAX_INCREASE, CONF_SOURCE_ENTITY, DEFAULT_MAX_INCREASE, DOMAIN
@@ -20,8 +21,12 @@ _CONFIG_SCHEMA = vol.Schema(
         vol.Required(CONF_SOURCE_ENTITY): selector.EntitySelector(
             selector.EntitySelectorConfig(domain=SENSOR_DOMAIN)
         ),
-        vol.Required(CONF_MAX_INCREASE, default=DEFAULT_MAX_INCREASE): selector.NumberSelector(
-            selector.NumberSelectorConfig(min=0, step=0.001, mode=selector.NumberSelectorMode.BOX)
+        vol.Required(
+            CONF_MAX_INCREASE, default=DEFAULT_MAX_INCREASE
+        ): selector.NumberSelector(
+            selector.NumberSelectorConfig(
+                min=0, step=0.001, mode=selector.NumberSelectorMode.BOX
+            )
         ),
     }
 )
@@ -29,7 +34,9 @@ _CONFIG_SCHEMA = vol.Schema(
 _OPTIONS_SCHEMA = vol.Schema(
     {
         vol.Required(CONF_MAX_INCREASE): selector.NumberSelector(
-            selector.NumberSelectorConfig(min=0, step=0.001, mode=selector.NumberSelectorMode.BOX)
+            selector.NumberSelectorConfig(
+                min=0, step=0.001, mode=selector.NumberSelectorMode.BOX
+            )
         ),
     }
 )
@@ -58,36 +65,34 @@ class SmartUtilityMeterConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         return self.async_show_form(step_id="user", data_schema=_CONFIG_SCHEMA)
 
     @staticmethod
+    @callback
     def async_get_options_flow(
         config_entry: config_entries.ConfigEntry,
     ) -> SmartUtilityMeterOptionsFlow:
         """Return an options flow so the threshold can be adjusted post-setup."""
-        return SmartUtilityMeterOptionsFlow(config_entry)
+        return SmartUtilityMeterOptionsFlow()
 
 
-class SmartUtilityMeterOptionsFlow(config_entries.OptionsFlow):
+class SmartUtilityMeterOptionsFlow(config_entries.OptionsFlowWithReload):
     """Allow the user to adjust options (e.g. max_increase) after initial setup."""
-
-    def __init__(self, config_entry: config_entries.ConfigEntry) -> None:
-        self._config_entry = config_entry
 
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
     ) -> config_entries.ConfigFlowResult:
         """Show the options form pre-populated with current values."""
         if user_input is not None:
-            return self.async_create_entry(title="", data=user_input)
+            return self.async_create_entry(
+                title="", data={**self.config_entry.options, **user_input}
+            )
 
-        current_max = self._config_entry.options.get(
+        current_max = self.config_entry.options.get(
             CONF_MAX_INCREASE,
-            self._config_entry.data.get(CONF_MAX_INCREASE, DEFAULT_MAX_INCREASE),
+            self.config_entry.data.get(CONF_MAX_INCREASE, DEFAULT_MAX_INCREASE),
         )
 
         return self.async_show_form(
             step_id="init",
-            # Name and source entity are intentionally excluded from options —
-            # changing either would invalidate the accumulated total and is better
-            # handled by deleting and recreating the helper.
+            # Keep source selection fixed; names can be customized in the entity UI.
             data_schema=self.add_suggested_values_to_schema(
                 _OPTIONS_SCHEMA, {CONF_MAX_INCREASE: float(current_max)}
             ),

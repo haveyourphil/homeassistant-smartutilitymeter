@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
+  <title>Smart Utility Meter</title>
+  <rect width="256" height="256" rx="48" fill="#11675e"/>
+  <path d="M40 150a88 88 0 0 1 176 0" fill="none" stroke="#fff" stroke-width="14"/>
+  <path d="M128 76v16M76 96l11 13M180 96l-11 13" stroke="#fff" stroke-width="10" stroke-linecap="round"/>
+  <path d="m128 150 42-45" stroke="#fdd46b" stroke-width="14" stroke-linecap="round"/>
+  <circle cx="128" cy="150" r="14" fill="#fdd46b"/>
+  <rect x="72" y="184" width="112" height="24" rx="6" fill="#fff"/>
+</svg>
