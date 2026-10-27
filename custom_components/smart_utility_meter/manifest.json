@@ -1,10 +1,6 @@
 {
   "domain": "smart_utility_meter",
   "name": "Smart Utility Meter",
-  "categories": [
-    "helpers.calculate_value",
-    "energy.meters_monitoring"
-  ],
   "codeowners": [
     "@haveyourphil"
   ],
